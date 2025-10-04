@@ -163,6 +163,67 @@ export default function InterviewPage() {
   const [answers, setAnswers] = useState<string[]>(Array(interviewQuestions.length).fill(''));
   const [isComplete, setIsComplete] = useState(false);
   const [currentAnswer, setCurrentAnswer] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [recognition, setRecognition] = useState<any>(null);
+
+  // Initialize speech recognition
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      
+      if (SpeechRecognitionAPI) {
+        const recognitionInstance = new SpeechRecognitionAPI();
+        recognitionInstance.continuous = true;
+        recognitionInstance.interimResults = true;
+        recognitionInstance.lang = 'en-US';
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        recognitionInstance.onresult = (event: any) => {
+          let finalTranscript = '';
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript + ' ';
+            }
+          }
+
+          if (finalTranscript) {
+            setCurrentAnswer(prev => prev + finalTranscript);
+          }
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        recognitionInstance.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsRecording(false);
+        };
+
+        recognitionInstance.onend = () => {
+          setIsRecording(false);
+        };
+
+        setRecognition(recognitionInstance);
+      }
+    }
+  });
+
+  const toggleRecording = () => {
+    if (!recognition) {
+      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isRecording) {
+      recognition.stop();
+      setIsRecording(false);
+    } else {
+      recognition.start();
+      setIsRecording(true);
+    }
+  };
 
   const handleNext = () => {
     const newAnswers = [...answers];
@@ -275,12 +336,41 @@ export default function InterviewPage() {
               </h2>
             </div>
 
-            <textarea
-              value={currentAnswer}
-              onChange={(e) => setCurrentAnswer(e.target.value)}
-              placeholder="Share your memory here... Take your time and include as many details as you remember."
-              className="w-full min-h-[300px] p-6 border-2 border-gray-200 rounded-2xl focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none resize-none text-lg text-gray-800 placeholder-gray-400"
-            />
+            <div className="relative">
+              <textarea
+                value={currentAnswer}
+                onChange={(e) => setCurrentAnswer(e.target.value)}
+                placeholder="Share your memory here... Take your time and include as many details as you remember."
+                className="w-full min-h-[300px] p-6 border-2 border-gray-200 rounded-2xl focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none resize-none text-lg text-gray-800 placeholder-gray-400"
+              />
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className={`absolute bottom-4 right-4 p-4 rounded-full shadow-lg transition-all transform hover:scale-110 ${
+                  isRecording
+                    ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                    : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700'
+                }`}
+                title={isRecording ? 'Stop recording' : 'Start voice recording'}
+              >
+                {isRecording ? (
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <rect x="6" y="4" width="8" height="12" rx="1" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a3 3 0 116 0v2a3 3 0 11-6 0V9z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {isRecording && (
+              <p className="text-sm text-red-600 font-medium animate-pulse flex items-center gap-2">
+                <span className="inline-block w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+                Recording... Speak clearly into your microphone
+              </p>
+            )}
           </div>
 
           {/* Navigation Buttons */}
